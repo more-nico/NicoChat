@@ -34,9 +34,9 @@ class PromptGenerator:
         self.DiagHistory    = ""
         for message in self.json_diag_history:
             if message["role"] == self.CharacterCard.CharacterName:
-                self.DiagHistory += f"{self.CharacterCard.CharacterName}: {message['content']}"
+                self.DiagHistory += f"{self.CharacterCard.CharacterName}: {message['content']}\n"
             elif message["role"] == self.UserCard.UserName:
-                self.DiagHistory += f"{self.UserCard.UserName}: {message['content']}"
+                self.DiagHistory += f"{self.UserCard.UserName}: {message['content']}\n"
     def FillingPromptGen(self):
         self.prompt_template = f"""
 You are a wonderful playwright, specializing in crafting outstanding character dialogues for scripts. 

@@ -1,81 +1,106 @@
 import gradio as gr
+import requests
+import json
+
 from prompt_gen import PromptGenerator, CharacterCard, UserCard  # 引入PromptGenerator及相关类
 from siliconflow_request import SiliconFlowRequest
 
-# 初始化LLMRequest对象
-NEW_API_URL = "https://api.siliconflow.cn/v1/chat/completions"
-API_KEY = "sk-kwosdhsjwabgalhvoyunroaqxjlznraigpimigptvtrccfxs"
-
-llm_request = SiliconFlowRequest(NEW_API_URL, API_KEY)
-
-# 获取模型列表
-models = llm_request.get_list()
-
+# Get API_URL and API_KEY from user_setting.json
+with open("../user_setting.json", "r", encoding="utf-8") as f:
+    config = json.load(f)
+    NEW_API_URL = config["API_URL"]
+    API_KEY = config["API_KEY"]
 def get_formatted_chat(chat_history):
-    formatted_chat = ""
+    messages = []
     for message in chat_history:
         if message["role"] == "NicoNya":
-            formatted_chat += f"<div style='text-align: left; margin-right: 10%;'><strong>NicoNya:</strong> <br>{message['content']}</div><br>"
+            messages.append({"role": "assistant", "content": message['content']})
         elif message["role"] == "morenico":
-            formatted_chat += f"<div style='text-align: right; margin-left: 10%;'><strong>morenico:</strong> <br>{message['content']}</div><br>"
-    return formatted_chat
-
-# def get_formatted_chat(chat_history):
-#     chat_div_content = ""
-#     for message in chat_history:
-#         if message["role"] == "NicoNya":
-#             chat_div_content += (
-#                 f"<div style='text-align: left; margin-right: 10%;'>"
-#                 f"<strong>NicoNya:</strong><br>{message['content']}"
-#                 "</div><br>"
-#             )
-#         elif message["role"] == "morenico":
-#             chat_div_content += (
-#                 f"<div style='text-align: right; margin-left: 10%;'>"
-#                 f"<strong>morenico:</strong><br>{message['content']}"
-#                 "</div><br>"
-#             )
-#     # 外层 div，设置最大高度、滚动条，并添加 id
-#     formatted_chat = f"""
-#     <div id="chat-container" style="max-height: 500px; overflow-y: auto; padding: 10px; border: 1px solid #ccc;">
-#         {chat_div_content}
-#     </div>
-#     <script>
-#       // 自动滚动到最底部
-#       var chatDiv = document.getElementById("chat-container");
-#       chatDiv.scrollTop = chatDiv.scrollHeight;
-#     </script>
-#     """
-#     return formatted_chat
-
-
+            messages.append({"role": "user", "content": message['content']})
+    return messages
 
 def log_record(log):
     with open("output.log", "a", encoding="utf-8") as f:  # 将输出写入文件
         f.write(f"{log}\n")
-# 定义聊天界面的布局
-def chat_interface(api_url, selected_model, user_input, retry_flag):
+# 定义打开和关闭弹窗的回调函数
+def open_setting():
+    # 更新 modal 和遮罩层为可见
+    return gr.update(visible=True), gr.update(visible=True)
+
+def close_setting():
+    # 隐藏 modal 和遮罩层
+    return gr.update(visible=False), gr.update(visible=False)
+
+def UpdateGR(models, messages):
+    return gr.update(choices=models, value="Vendor-A/Qwen/Qwen2.5-72B-Instruct"), gr.update(value=messages)
+
+
+# 自定义 CSS，用来模拟弹窗和全屏遮罩效果
+custom_css = """
+#setting-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 500;
+}
+#setting-window {
+    position: fixed;
+    top: 30%;
+    left: 40%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 20px;
+    z-index: 1000;
+    border: 1px solid rgb(68, 68, 68);
+    border-radius: 30px;
+    margin: 10%;
+    width: 80%;
+}
+#chatbot {
+    min-height: 70vh;
+}
+#send_btn {
+    max-width: 20%;
+}
+#sending_text {
+    min-width: 70%;
+}
+/* 手机端的按钮样式 */
+@media screen and (max-width: 768px) {
+    .gr-row { 
+        flex-wrap: nowrap !important;  /* 强制单行排列 */
+        overflow-x: auto !important;     /* 允许横向滚动 */
+    }
+    .gr-row > .gr-button { 
+        min-width: 50px !important;      /* 压缩按钮最小宽度 */
+    }
+}
+"""
+
+def get_list(api_url):
+    response = requests.get(api_url + "api/tags")
+    response_dict = json.loads(response.text)
+    models = [model["name"] for model in response_dict["models"]]
+    for idx, name in enumerate(models, start=1):
+        print(f"{idx}. {name}")
+    return models
+def generate_response(api_url, message, model, top_k, top_p, temperature):
+    """
+    调用后端 REST API 生成回复，并返回更新后的对话历史。
+    此处为同步调用，API 返回 JSON 格式：{ "message": {"content": "生成的回复文本"} }
+    """
     llm_request.api_url = api_url
-    llm_request.selected_model = selected_model
-    
-    if retry_flag == "1" and llm_request.prompt_gen.json_diag_history:
-        llm_request.prompt_gen.json_diag_history.pop()
-        # llm_request.prompt_gen.json_diag_history.pop()
-        print(llm_request.prompt_gen.json_diag_history)
-        formatted_chat = get_formatted_chat(llm_request.prompt_gen.json_diag_history)
-        yield formatted_chat
-        # return 0
-    else:
-        llm_request.prompt_gen.json_diag_history.append({"role": "morenico", "content": user_input})
-    print(f"NicoNya: ", end='', flush=True)
-    
-    # 格式化聊天历史为消息气泡
+    llm_request.selected_model = model
+    llm_request.prompt_gen.json_diag_history.append({"role": "morenico", "content": message})
     formatted_chat = get_formatted_chat(llm_request.prompt_gen.json_diag_history)
     yield formatted_chat
     log_record(llm_request.prompt_gen.json_diag_history)
     
     data = {
-        "model": selected_model,
+        "model": model,
         "messages": [
             {"role": "user", "content": llm_request.prompt_gen.FillingPromptGen()}
         ],
@@ -124,7 +149,6 @@ def chat_interface(api_url, selected_model, user_input, retry_flag):
                 )
                 print(f"检测到停止字符串 \"{detected_stop_string}\"，停止生成。\n")
                 result = result.replace(detected_stop_string, "")
-                yield result  # 将最后的结果yield出去
                 
                 if "<think" in result:
                     if "</think>\n\n" in result:
@@ -149,76 +173,94 @@ def chat_clean():
     llm_request.prompt_gen = PromptGenerator(CharacterCard("NicoNya"), UserCard("morenico"))
     llm_request.prompt_gen.json_diag_history = [{"role": "NicoNya", "content": llm_request.prompt_gen.CharacterCard.CharacterGreeting}]
     return get_formatted_chat(llm_request.prompt_gen.json_diag_history)
-# 修改confirm_button的点击事件，清空user_input
-def on_confirm():
-    return ""  # 清空user_input
+
+def retry_last(api_url, history, model, top_k, top_p, temperature):
+    """
+    重试最后一次生成。
+    如果历史记录中最后一条为用户消息（即没有对应的回复），则重新调用生成函数；
+    如果最后一条为助手回复，则取倒数第二条用户消息重新生成回复，并删除原来的回复。
+    """
+    print(llm_request.prompt_gen.json_diag_history)
+    if not llm_request.prompt_gen.json_diag_history:
+        return llm_request.prompt_gen.json_diag_history
+    # 判断历史记录长度：若为奇数，最后一条为角色消息；若为偶数，最后一条为用户回复
+    if len(llm_request.prompt_gen.json_diag_history) % 2 == 1:
+        last_user_msg = llm_request.prompt_gen.json_diag_history[-2]["content"]
+        # 去除最后未回复的用户消息
+        llm_request.prompt_gen.json_diag_history = llm_request.prompt_gen.json_diag_history[:-2]
+    else:
+        last_user_msg = llm_request.prompt_gen.json_diag_history[-1]["content"]
+        # 去除最后一对用户消息及其回复
+        llm_request.prompt_gen.json_diag_history = llm_request.prompt_gen.json_diag_history[:-1]
     
-# 创建Gradio界面
-with gr.Blocks() as demo:
+    yield get_formatted_chat(llm_request.prompt_gen.json_diag_history)
+    # 重新生成回复
+    for partial_response in generate_response(api_url, last_user_msg, model, top_k, top_p, temperature):
+        yield partial_response
+
+with gr.Blocks(css=custom_css) as demo:
     gr.Markdown("# Nico☆Chat with NicoNya")
+        
+    llm_request = SiliconFlowRequest(NEW_API_URL, API_KEY)
+    try:
+        models = llm_request.get_list()
+    except:
+        raise Exception("Get ModelList Failed, API_URL or API_KEY is wrong")
+    
     
     with gr.Row():
-        api_url_input = gr.Textbox(label="API URL", value=NEW_API_URL, visible=False)
-        api_key_input = gr.Textbox(label="API KEY", value=API_KEY, visible=False)
         model_select  = gr.Dropdown(label="Select Model", choices=models, value="Vendor-A/Qwen/Qwen2.5-72B-Instruct")
     
+    # 使用 gr.Chatbot 组件，type 参数设置为 "messages"，以采用 {'role':..., 'content':...} 格式
+    chatbot = gr.Chatbot(value=chat_clean(), type="messages", render_markdown=False, elem_id="chatbot")
     
-    formatted_chat = chat_clean()
-    chat_history_display = gr.HTML(label="Chat History", value=chat_clean())
+    with gr.Row():
+        txt = gr.Textbox(placeholder="请输入消息", show_label=False, elem_id="sending_text")
+        send_btn = gr.Button("发送", elem_id="send_btn")
     
-    user_input = gr.Textbox(label="User Input")
+    with gr.Row():
+        retry_btn = gr.Button("重试")
+        clear_btn = gr.Button("清空聊天")
+        btn_settings = gr.Button("设置")
     
-    with gr.Row(visible=True) as button_row:  # 添加样式到按钮行
-        confirm_button = gr.Button("Send", min_width=50)
-        retry_button = gr.Button("Retry", min_width=50)
-        clean_button = gr.Button("Clean", min_width=50)
-
-    # 在Blocks中添加CSS样式
-    demo.css = """
-    /* 手机端的按钮样式 */
-    @media screen and (max-width: 768px) {
-        .gr-row { 
-            flex-wrap: nowrap !important;  /* 强制单行排列 */
-            overflow-x: auto !important;     /* 允许横向滚动 */
-        }
-        .gr-row > .gr-button { 
-            min-width: 50px !important;      /* 压缩按钮最小宽度 */
-        }
-    }
-    """
-    hidden_retry_confirm = gr.Textbox(value="0", visible=False)
-    hidden_retry_retry   = gr.Textbox(value="1", visible=False)
+    ########## Setting UI ##########
+    # 模拟的遮罩层，初始状态为隐藏
+    setting_overlay = gr.Column(visible=False, elem_id="setting-overlay")
     
-
-    # 添加事件监听器，当按下Enter键时触发confirm_button
-    user_input.submit(
-        fn=chat_interface,
-        inputs=[api_url_input, model_select, user_input, hidden_retry_confirm],
-        outputs=chat_history_display
-    )
-    user_input.submit(
-        fn=on_confirm,
-        outputs=user_input
+    # 模拟的弹窗容器，初始状态为隐藏
+    setting_window = gr.Column(visible=False, elem_id="setting-window")
+    
+    with setting_window:
+        gr.Markdown("### 模型参数设置")
+        api_url_input = gr.Textbox(label="API URL", value=NEW_API_URL)
+        api_key_input = gr.Textbox(label="API KEY", value=API_KEY)
+        top_k = gr.Slider(0, 100, step=1, label="top_k", value=40, info="影响生成多样性，值越大答案越多样")
+        top_p = gr.Slider(0.0, 1.0, step=0.05, label="top_p", value=0.9, info="与 top_k 联合控制生成概率分布")
+        temperature = gr.Slider(0.0, 2.0, step=0.1, label="temperature", value=0.4, info="温度越高回答越随机")
+        btn_close = gr.Button("关闭设置")
+    
+    # 发送按钮：调用 generate_response 函数，更新聊天历史（chatbot 的值即为对话记录）
+    send_btn.click(
+        generate_response,
+        inputs=[api_url_input, txt, model_select, top_k, top_p, temperature],
+        outputs=chatbot
+    ).then(
+        lambda: "", None, txt  # 发送后清空输入框
     )
     
-    confirm_button.click(
-        fn=chat_interface,
-        inputs=[api_url_input, model_select, user_input, hidden_retry_confirm],
-        outputs=chat_history_display
-    )
-    confirm_button.click(
-        fn=on_confirm,
-        outputs=user_input
-    )
-
-    retry_button.click(
-        fn=chat_interface,
-        inputs=[api_url_input, model_select, user_input, hidden_retry_retry],
-        outputs=chat_history_display
+    # 清空聊天：直接将对话历史置为空列表
+    clear_btn.click(chat_clean, outputs=chatbot)
+    
+    # 重试按钮：重试最后一次生成
+    retry_btn.click(
+        retry_last,
+        inputs=[api_url_input, chatbot, model_select, top_k, top_p, temperature],
+        outputs=chatbot
     )
     
-    clean_button.click(
-        fn=chat_clean,
-        outputs=chat_history_display
-    )
-demo.launch(server_name="0.0.0.0")
+    # 点击“设置”按钮时，显示弹窗和遮罩层
+    btn_settings.click(fn=open_setting, inputs=None, outputs=[setting_window, setting_overlay])
+    # 点击“关闭设置”按钮时，隐藏弹窗和遮罩层
+    btn_close.click(fn=close_setting, inputs=None, outputs=[setting_window, setting_overlay])
+    
+demo.launch()
