@@ -248,6 +248,14 @@ with gr.Blocks(css=custom_css) as demo:
         lambda: "", None, txt  # 发送后清空输入框
     )
     
+    txt.submit(
+        generate_response,
+        inputs=[api_url_input, txt, model_select, top_k, top_p, temperature],
+        outputs=chatbot
+    ).then(
+        lambda: "", None, txt  # 发送后清空输入框
+    )
+    
     # 清空聊天：直接将对话历史置为空列表
     clear_btn.click(chat_clean, outputs=chatbot)
     
