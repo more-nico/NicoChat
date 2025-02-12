@@ -4,7 +4,7 @@ from prompt_gen import PromptGenerator, CharacterCard, UserCard  # 引入PromptG
 
 # 添加配置变量
 NEW_API_URL = "https://api.siliconflow.cn/v1/chat/completions"
-API_KEY = "sk-kwosdhsjwabgalhvoyunroaqxjlznraigpimigptvtrccfxs"
+API_KEY = "sk-xxx"
 
 class SiliconFlowRequest:
     def __init__(self, api_url, api_key):
