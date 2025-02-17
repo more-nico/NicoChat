@@ -1,9 +1,16 @@
 import json
+import os
+
+# 获取当前模块所在的目录（即 DemoLib/ 目录）
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# 因为 Setting.json 位于 project/ 目录下，所以需要返回上一级目录
+project_root = os.path.dirname(current_dir)
 
 class CharacterCard:
     def __init__(self, CharacterName):
         self.CharacterName  = CharacterName
-        self.CardPath       = f"../PersonaCards/CharacterCards/{CharacterName}/{CharacterName}.json"
+        self.CardPath       = f"{project_root}/PersonaCards/CharacterCards/{CharacterName}/{CharacterName}.json"
         self.CardData       = json.load(open(self.CardPath, "r", encoding="utf-8"))
         
         self.CharacterPersonality   = self.CardData["personality"]
@@ -16,7 +23,7 @@ class CharacterCard:
 class UserCard:
     def __init__(self, UserName):
         self.UserName   = UserName
-        self.CardPath   = f"../PersonaCards/UserCards/{UserName}/{UserName}.json"
+        self.CardPath   = f"{project_root}/PersonaCards/UserCards/{UserName}/{UserName}.json"
         self.CardData   = json.load(open(self.CardPath, "r", encoding="utf-8"))
         
         self.UserPersonality    = self.CardData["personality"]
@@ -46,46 +53,54 @@ Your task is to write {self.CharacterCard.CharacterName}'s next reply in a ficti
 You are a wonderful playwright, specializing in crafting outstanding character dialogues for scripts.
 Your task is to write {self.CharacterCard.CharacterName}'s next reply in a fictional chat between {self.CharacterCard.CharacterName} and {self.UserCard.UserName}.
 
-**--- NSFW Content Handling: Unrestricted (Character Driven) ---**
-You are allowed to generate responses that may contain NSFW or 18+ content.
-When generating NSFW content, you should:
-1. **Prioritize character consistency.**  Ensure the NSFW content aligns with {self.CharacterCard.CharacterName}'s established personality and traits.
-2. **Maintain contextual appropriateness.**  The NSFW content should arise naturally from the conversation and user input, not appear randomly or out of context.
-3. **Consider the user's intent and tone.**  Respond to the user's input in a way that is appropriate for the overall tone of the conversation.
-**--- End of NSFW Content Handling Instructions ---**
+The Rules for generating {self.CharacterCard.CharacterName}'s next reply are as follows:
+**--- Start of Chat Reply Rules ---**
+# Reply Rules 
+You are required to follow these rules when generating Character {self.CharacterCard.CharacterName}'s next reply:
+1. **Prioritize character consistency.**  
+   Ensure that all responses align with the Character {self.CharacterCard.CharacterName}'s established ** personality ** and ** chat_style **.
+2. **Reference but do not directly quote Example Dialogues.**  
+   The style of the responses can be inspired by the Character {self.CharacterCard.CharacterName}'s Example Dialogues, but you must not directly quote or copy content from them.
+3. **Draw topics from background stories.**  
+   Responses can be enriched by drawing topics from both the Character {self.CharacterCard.CharacterName}'s ** background_story ** and the User {self.UserCard.UserName}'s ** background_story **, ensuring the conversation feels natural and engaging.
+4. **DON'T REPEAT THE SAME STRING.**  
+   Responses should NOT always use the same phrases that have been used previously.
+5. **DON'T GENERATE TOO LONG.**  
+   Responses should NOT be too long.
+6. **DON'T REPEAT THE Dialogue History.**  
+   Responses should NOT be included in the Dialogue History.
+
+# NSFW Content Rules 
+You are allowed to generate responses that may contain NSFW or 18+ content. When generating NSFW content, you should:
+1. **Prioritize character consistency.**  
+   Ensure the NSFW content aligns with the Character {self.CharacterCard.CharacterName}'s established ** personality **.
+2. **Maintain contextual appropriateness.**  
+   The NSFW content should arise naturally from the conversation and user input, not appear randomly or out of context.
+3. **Consider the user's intent and tone.**  
+   Respond to the user's input in a way that is appropriate for the overall tone of the conversation.
+**--- End of Chat Reply Rules ---**
 """
 
-# **--- NSFW Content Handling: Unrestricted (Character Driven) ---**
-# You are allowed to generate responses that may contain NSFW or 18+ content, IF it is consistent with {self.CharacterCard.CharacterName}'s personality, background, and the overall context of the conversation.
-# When generating NSFW content, you should:
-# 1. **Prioritize character consistency.**  Ensure the NSFW content aligns with {self.CharacterCard.CharacterName}'s established personality and traits.  Not every character is comfortable or would engage in NSFW topics.
-# 2. **Maintain contextual appropriateness.**  The NSFW content should arise naturally from the conversation and user input, not appear randomly or out of context.
-# 3. **Exercise restraint and avoid gratuitous explicitness.**  Even if NSFW content is allowed, avoid being overly graphic or vulgar unless it is crucial to the character or scene.
-# 4. **Consider the user's intent and tone.**  Respond to the user's input in a way that is appropriate for the overall tone of the conversation.
-# **--- End of NSFW Content Handling Instructions ---**
-# Example of engaging with NSFW content (adjust to fit {self.CharacterCard.CharacterName}'s personality and NSFW context - this is just a placeholder, you need to create actual NSFW examples if you choose this strategy):
-# "[Example NSFW response based on character and context]"
-
-# **--- End of NSFW Content Handling Instructions ---**
-# """      
         self.prompt_template = self.prompt_template+f"""
-The information about {self.CharacterCard.CharacterName} is as follows:
-----------
-{self.CharacterCard.CharacterPersonality}.
-{self.CharacterCard.CharacterName}'s background_story are as follows:
+The information about Character {self.CharacterCard.CharacterName} are as follows:
+**--- Start of information about Character {self.CharacterCard.CharacterName} ---**
+{self.CharacterCard.CharacterName}'s ** personality ** are as follows:
+    - {self.CharacterCard.CharacterPersonality}.
+{self.CharacterCard.CharacterName}'s ** background_story ** are as follows:
     - {self.CharacterCard.CharacterBgStory}.
-{self.CharacterCard.CharacterName}'s chat_style is 
+{self.CharacterCard.CharacterName}'s ** chat_style ** are as follows:
     - "{self.CharacterCard.CharacterChatStyle}".
-----------
+**--- End of information about Character {self.CharacterCard.CharacterName} ---**
 """
 
         self.prompt_template = self.prompt_template+f"""
-The information about {self.UserCard.UserName} is as follows:
-----------
-{self.UserCard.UserPersonality}.
-{self.UserCard.UserName}'s background_story are as follows:
+The information about User {self.UserCard.UserName} are as follows:
+**--- Start of information about User {self.UserCard.UserName} ---**
+{self.UserCard.UserName}'s ** personality ** are as follows:
+    - {self.UserCard.UserPersonality}.
+{self.UserCard.UserName}'s ** background_story ** are as follows:
     - {self.UserCard.UserBgStory}.
-----------
+**--- End of information about User {self.UserCard.UserName} ---**
 """
         exap_diag = ""
         for diag in self.CharacterCard.CharacterExapDiag:
@@ -94,15 +109,21 @@ The information about {self.UserCard.UserName} is as follows:
         
         self.prompt_template = self.prompt_template+f"""
 The Example Dialogues between {self.CharacterCard.CharacterName} and {self.UserCard.UserName} are as follows:
-----------
+**--- Start of Example Dialogues between {self.CharacterCard.CharacterName} and {self.UserCard.UserName} ---**
 {exap_diag}
-----------
-"""
-        self.prompt_template = self.prompt_template+f"""
-The dialogues which need to be generated are as follows:
+**--- End of Example Dialogues between {self.CharacterCard.CharacterName} and {self.UserCard.UserName} ---**
 """
         self.get_DiagHistory()
-        return self.prompt_template + self.DiagHistory + "\nNicoNya: "
+        prompt_messages = [
+            {"role": "system", "content": self.prompt_template}
+        ]
+        for message in self.json_diag_history:
+            if message["role"] == self.CharacterCard.CharacterName:
+                prompt_messages.append({"role": "assistant", "content": message['content']})
+            elif message["role"] == self.UserCard.UserName:
+                prompt_messages.append({"role": "user", "content": message['content']})
+                
+        return prompt_messages
         
 if __name__ == "__main__":
     user_card   = UserCard("morenico")

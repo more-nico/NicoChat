@@ -1,39 +1,21 @@
 import requests
 import json
-import os
 # from ChatLib.prompt_gen import PromptGenerator, CharacterCard, UserCard  # 引入PromptGenerator及相关类
 from .prompt_gen import PromptGenerator, CharacterCard, UserCard  # 引入PromptGenerator及相关类
 
-# 获取当前模块所在的目录（即 DemoLib/ 目录）
-current_dir = os.path.dirname(os.path.abspath(__file__))
-
-# 因为 Setting.json 位于 project/ 目录下，所以需要返回上一级目录
-project_root = os.path.dirname(current_dir)
-# project_root = current_dir
-
 # 添加配置变量
-with open(f"{project_root}/user_setting.json", "r", encoding="utf-8") as f:
-    setting_json = json.load(f)
-    SERVER_LIST     = setting_json["SERVER_LIST"]
-    for server in SERVER_LIST:
-        if server["SERVER"] == "SiliconFlow":    config = server
-    SERVER  = config["SERVER"]
-    SILICONFLOW_API_URL = config["API_URL"]
-    SILICONFLOW_API_KEY = config["API_KEY"]
+OLLAMA_API_URL = "http://127.0.0.1:11434/"
 
-class SilliconFlowLLMRequest:
-    def __init__(self, api_url, api_key):
+class OllamaLLMRequest:
+    def __init__(self, api_url):
         self.api_url = api_url
-        self.api_key = api_key
         self.models = []
         self.selected_model = None
         self.prompt_gen = None
         self.latest_response = ""
 
     def get_list(self):
-        headers = {"Authorization": f"Bearer {self.api_key}"}
-        querystring = {"type":"text"}
-        response = requests.get(self.api_url + "v1/models", headers=headers, params=querystring)
+        response = requests.get(self.api_url + "v1/models")
         response_dict = json.loads(response.text)
         self.models = [model["id"] for model in response_dict["data"]]
         for idx, name in enumerate(self.models, start=1):
@@ -41,10 +23,7 @@ class SilliconFlowLLMRequest:
         return self.models
     
     def get_response(self, data, stop_strings=None, webui=False):
-        headers = {"Authorization": f"Bearer {self.api_key}"}
-        print(data)
-        print(headers)
-        response = requests.post(self.api_url + "v1/chat/completions", json=data, headers=headers, stream=True)  # 使用流式输出
+        response = requests.post(self.api_url + "/api/chat", json=data, stream=True)  # 使用流式输出
         result = ""
         with open("output.log", "a", encoding="utf-8") as f:
             for line in response.iter_lines():
@@ -55,20 +34,10 @@ class SilliconFlowLLMRequest:
                             decoded_line = decoded_line[6:]
                     try:
                         json_data = json.loads(decoded_line)
-                        if json_data['choices'][0]['delta']['content']==None and json_data['choices'][0]['delta']['reasoning_content']!=None:
-                            if "\n<think>" not in result:
-                                response_content = "<think>\n"+json_data['choices'][0]['delta']['reasoning_content']
-                            else:
-                                response_content = json_data['choices'][0]['delta']['reasoning_content']
-                            result += response_content
-                        if json_data['choices'][0]['delta']['content']!=None and json_data['choices'][0]['delta']['reasoning_content']==None:
-                            if "<think>" in result and "</think>" not in result:
-                                response_content = "</think>\n"+json_data['choices'][0]['delta']['content']
-                            else:
-                                response_content = json_data['choices'][0]['delta']['content']
-                            result += response_content
                     except json.JSONDecodeError:
                         continue  # 如果无法解析JSON，则跳过这一行
+                    response_content = json_data.get("message", "").get("content", "")
+                    result += response_content
                     self.latest_response = response_content
 
                     if not webui:
@@ -141,12 +110,12 @@ class SilliconFlowLLMRequest:
         print(data)
 
         result = ""
-        for partial_response in self.get_response(data, data["stopping_strings"], webui=False):
+        for partial_response in self.get_response(data, data["stopping_strings"]):
             print(partial_response, end='', flush=True)
             result += partial_response  # 保留最后一次的完整结果
         while input("Need Retry?")=='y':
             result = ""
-            for partial_response in self.get_response(data, data["stopping_strings"], webui=False):
+            for partial_response in self.get_response(data, data["stopping_strings"]):
                 print(partial_response, end='', flush=True)
                 result += partial_response
 
@@ -159,7 +128,7 @@ class SilliconFlowLLMRequest:
         print("\n" + "*" * 80 + "\n" + self.prompt_gen.DiagHistory + "\n" + "*" * 80 + "\n")
         return True
 def main():
-    llm_request = SilliconFlowLLMRequest(SILICONFLOW_API_URL, SILICONFLOW_API_KEY)
+    llm_request = OllamaLLMRequest(OLLAMA_API_URL)
     llm_request.get_list()
     llm_request.select_model(int(input("Select Model: ")))
     while llm_request.start_chat():
