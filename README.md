@@ -3,7 +3,7 @@
 ## 概述
 NicoChat Interface 是一个基于 Gradio 构建的聊天机器人界面，使用 LLM（大语言模型）来生成对话内容，基于GPT-Sovits或者CosyVoice生成语音(待二次开发)。该项目允许用户与一个名为 NicoNya 的虚拟角色进行互动，您也可以自定义角色卡。
 
-[![](./Src/VideoCover.jpg)](https://www.bilibili.com/video/BV1YcwZeLECm/)
+[![](./Src/VideoCover.png)](https://www.bilibili.com/video/BV1YcwZeLECm/)
 
 ### 注意
 当前只支持NicoNya角色，服务商仅支持Ollama、LM_Studio、[siliconflow](https://cloud.siliconflow.cn/)。
